@@ -1,0 +1,11 @@
+services:
+  gateway-service:
+    environment:
+      ASPNETCORE_HTTP_PORTS: ""
+      ASPNETCORE_HTTPS_PORTS: "8443"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/vinheria.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: ${CERT_PASSWORD}
+    volumes:
+      - ./certs:/https:ro
+    ports:
+      - "5440:8443"

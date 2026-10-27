@@ -1,0 +1,28 @@
+@gateway = http://localhost:5000
+
+### Obter token
+# @name token
+POST {{gateway}}/auth/v1/auth/token
+Content-Type: application/json
+
+{
+  "username": "demo",
+  "password": "vinheria-demo"
+}
+
+### Consultar estoque
+GET {{gateway}}/estoque/v1/estoque
+Authorization: Bearer {{token.response.body.$['access_token']}}
+
+### Criar pedido e publicar evento
+POST {{gateway}}/pedidos/v1/pedidos
+Authorization: Bearer {{token.response.body.$['access_token']}}
+Content-Type: application/json
+
+{
+  "sku": "vinho-tinto",
+  "quantity": 1
+}
+
+### Documentação do Gateway para Auth
+GET {{gateway}}/docs/auth

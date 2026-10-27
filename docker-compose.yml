@@ -1,0 +1,97 @@
+services:
+  gateway-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/GatewayService/GatewayService.csproj
+        SERVICE_DLL: GatewayService
+    depends_on:
+      auth-service:
+        condition: service_started
+      pedidos-service:
+        condition: service_started
+      estoque-service:
+        condition: service_started
+      mensageria-service:
+        condition: service_started
+    networks:
+      - vinheria
+    ports:
+      - "5000:8080"
+
+  auth-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/AuthService/AuthService.csproj
+        SERVICE_DLL: AuthService
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - vinheria
+
+  estoque-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/EstoqueService/EstoqueService.csproj
+        SERVICE_DLL: EstoqueService
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - vinheria
+
+  pedidos-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/PedidosService/PedidosService.csproj
+        SERVICE_DLL: PedidosService
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      ESTOQUE_URL: ${ESTOQUE_URL}
+      MENSAGERIA_URL: ${MENSAGERIA_URL}
+      ALLOW_SELF_SIGNED_CERT: ${ALLOW_SELF_SIGNED_CERT}
+    depends_on:
+      estoque-service:
+        condition: service_started
+      mensageria-service:
+        condition: service_started
+    networks:
+      - vinheria
+
+  mensageria-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/MensageriaService/MensageriaService.csproj
+        SERVICE_DLL: MensageriaService
+    environment:
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - vinheria
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - vinheria
+    ports:
+      - "15672:15672"
+
+networks:
+  vinheria:
+    name: vinheria-network
+    driver: bridge

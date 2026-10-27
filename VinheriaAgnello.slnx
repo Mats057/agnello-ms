@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="services/AuthService/AuthService.csproj" />
+    <Project Path="services/EstoqueService/EstoqueService.csproj" />
+    <Project Path="services/GatewayService/GatewayService.csproj" />
+    <Project Path="services/MensageriaService/MensageriaService.csproj" />
+    <Project Path="services/PedidosService/PedidosService.csproj" />
+    <Project Path="services/Vinheria.Shared/Vinheria.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ServiceTests/ServiceTests.csproj" />
+  </Folder>
+</Solution>
