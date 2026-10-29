@@ -1,75 +1,185 @@
-# Protótipo da Vinheria Agnello
+# Vinheria Agnello
 
-Este protótipo simula uma arquitetura de microsserviços com:
+Guia de instalação e execução do protótipo de microsserviços da Vinheria
+Agnello. Este documento foi escrito para quem está configurando o projeto pela
+primeira vez, em uma máquina sem o ambiente preparado.
 
-- **Gateway**: único ponto de entrada público.
-- **Auth**: cadastro de usuário e emissão de JWT.
-- **MS-05 Estoque**: saldos em memória e reservas.
-- **MS-06 Pedidos**: criação de pedidos e chamada REST ao Estoque.
-- **Mensageria**: publicação de eventos em RabbitMQ.
+## 1. O que este projeto demonstra
 
-## Pré-requisitos
+O projeto simula uma arquitetura de microsserviços para uma vinheria:
 
-- Docker Desktop com Compose habilitado.
-- .NET SDK 10 para build/testes diretamente no Windows.
+- **Gateway**: única porta de entrada para clientes.
+- **AuthService**: cadastro de usuários e emissão de tokens JWT.
+- **PedidosService**: criação de pedidos e reserva de produtos.
+- **EstoqueService**: consulta e reserva do estoque em memória.
+- **MensageriaService**: publicação de eventos de negócio.
+- **RabbitMQ**: broker usado para o evento `pedido.criado`.
 
-## Execução local
+O cliente acessa somente o Gateway. Os demais serviços conversam pela rede
+interna do Docker Compose usando os nomes dos serviços como DNS. O fluxo
+principal é:
 
-```powershell
-docker compose up --build
+```text
+Cliente -> Gateway -> Auth/Pedidos/Estoque
+                         |
+                         v
+                    Mensageria -> RabbitMQ
 ```
 
-Somente o Gateway publica uma porta:
+O estado dos usuários e do estoque é mantido em memória. Ao reiniciar os
+containers, os dados de demonstração voltam ao estado inicial.
 
-- `http://localhost:5000` — Gateway.
-- `http://localhost:15672` — console opcional do RabbitMQ (`vinheria`/`vinheria`).
+## 2. Pré-requisitos
 
-Os microsserviços não possuem portas publicadas no host. Use os prefixos do
-Gateway:
+Em uma máquina Windows, instale:
 
-- `/auth/...`
-- `/pedidos/...`
-- `/estoque/...`
-- `/mensageria/...`
+1. **Git**: https://git-scm.com/download/win
+2. **Docker Desktop**: https://www.docker.com/products/docker-desktop/
+3. **.NET SDK 10**: https://dotnet.microsoft.com/download/dotnet/10.0
 
-Ao abrir `http://localhost:5000/` (ou `https://localhost:5440/` no perfil
-seguro), você encontra o **Developer Hub** do Gateway. Ele reúne o catálogo
-das APIs, links para Scalar/OpenAPI, fluxo de integração, exemplos de payload
-e o status dos serviços. Esse é o ponto de entrada recomendado para uma
-aplicação cliente que não conhece a topologia interna.
+O Docker Desktop precisa estar aberto e configurado para usar **Linux
+containers**. O .NET SDK só é necessário para executar os testes diretamente
+no Windows ou para gerar o certificado HTTPS local; a aplicação também pode
+ser compilada inteiramente dentro do Docker.
 
-As documentações usam OpenAPI nativo e Scalar:
-
-- `http://localhost:5000/auth/scalar`
-- `http://localhost:5000/pedidos/scalar`
-- `http://localhost:5000/estoque/scalar`
-- `http://localhost:5000/mensageria/scalar`
-
-Também existem redirecionamentos amigáveis em `/docs/auth`,
-`/docs/pedidos`, `/docs/estoque` e `/docs/mensageria`.
-
-## Roteiro de demonstração
-
-O usuário inicial de laboratório é `demo` com senha `vinheria-demo`.
-
-O AuthService é o único serviço que cria usuários e emite tokens. Pedidos e
-Estoque não mantêm usuários nem emitem tokens: eles validam a assinatura
-HMAC-SHA256, expiração e role `user` do Bearer token emitido pelo AuthService.
-O mesmo `JWT_SECRET` é injetado nos três containers pelo `.env`, sem repetir a
-chave no `docker-compose.yml`. Para configurar uma nova máquina, copie
-`.env.example` para `.env` e substitua os valores locais.
-As credenciais do RabbitMQ também ficam somente no `.env`.
+Verifique a instalação no PowerShell:
 
 ```powershell
-$token = (Invoke-RestMethod `
+git --version
+docker --version
+docker compose version
+dotnet --version
+```
+
+## 3. Baixar e configurar o projeto
+
+Abra o PowerShell e execute:
+
+```powershell
+git clone https://github.com/Mats057/agnello-ms.git
+Set-Location .\agnello-ms
+```
+
+Crie o arquivo local de configuração a partir do modelo:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Abra o arquivo para revisar os valores:
+
+```powershell
+notepad .env
+```
+
+Para a primeira execução, os valores do modelo já são suficientes. Em um
+ambiente compartilhado, altere pelo menos `JWT_SECRET` e
+`RABBITMQ_PASSWORD`. O arquivo `.env` contém segredos locais e não deve ser
+commitado nem enviado ao GitHub.
+
+As variáveis mais importantes são:
+
+| Variável | Função |
+|---|---|
+| `JWT_SECRET` | Chave compartilhada para assinar e validar tokens |
+| `RABBITMQ_USER` | Usuário do RabbitMQ |
+| `RABBITMQ_PASSWORD` | Senha do RabbitMQ |
+| `GATEWAY_PORT` | Porta do Gateway no computador host; padrão `5000` |
+| `CERT_PASSWORD` | Senha do certificado HTTPS local |
+
+As variáveis `ESTOQUE_URL`, `MENSAGERIA_URL` e `RABBITMQ_HOST` usam nomes DNS
+internos do Compose. Não troque esses nomes por `localhost`: dentro de um
+container, `localhost` aponta para o próprio container.
+
+## 4. Executar localmente com Docker
+
+O primeiro comando compila as cinco aplicações, cria os containers e inicia
+RabbitMQ:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.build.yml up --build --remove-orphans
+```
+
+Deixe esse terminal aberto. Em outro PowerShell, confirme os containers:
+
+```powershell
+docker compose ps
+```
+
+O Gateway ficará disponível em:
+
+- http://localhost:5000
+
+Somente essa porta é publicada no host. As portas internas dos microsserviços
+não ficam expostas diretamente, o que demonstra isolamento de rede.
+
+Para parar a aplicação:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.build.yml down
+```
+
+Para parar e remover também os volumes do RabbitMQ:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.build.yml down --volumes
+```
+
+### Problemas comuns ao iniciar
+
+- **Porta 5000 ocupada**: altere `GATEWAY_PORT=5001` no `.env` e acesse
+  `http://localhost:5001`.
+- **Docker não está rodando**: abra o Docker Desktop e espere o status
+  “Running”.
+- **Container encerrando**: veja os logs com
+  `docker compose logs --tail=100 nome-do-servico`.
+- **Alteração de código não aparece**: execute novamente o comando com
+  `--build`.
+
+## 5. Usar a documentação e testar a API
+
+Abra http://localhost:5000/ no navegador. O Gateway apresenta o **Developer
+Hub**, com o catálogo dos serviços, status e links para a documentação
+interativa Scalar.
+
+Links diretos:
+
+- http://localhost:5000/auth/scalar
+- http://localhost:5000/pedidos/scalar
+- http://localhost:5000/estoque/scalar
+- http://localhost:5000/mensageria/scalar
+
+Também existem os atalhos `/docs/auth`, `/docs/pedidos`, `/docs/estoque` e
+`/docs/mensageria`. O arquivo [`demo.http`](./demo.http) contém exemplos para
+clientes HTTP compatíveis com o VS Code.
+
+### Fluxo de demonstração pelo PowerShell
+
+O usuário `demo` com a senha `vinheria-demo` é criado para o laboratório.
+Primeiro, solicite um token:
+
+```powershell
+$tokenResponse = Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:5000/auth/v1/auth/token `
   -ContentType 'application/json' `
-  -Body '{"username":"demo","password":"vinheria-demo"}').access_token
+  -Body '{"username":"demo","password":"vinheria-demo"}'
 
+$token = $tokenResponse.access_token
 $headers = @{ Authorization = "Bearer $token" }
-Invoke-RestMethod -Uri http://localhost:5000/estoque/v1/estoque -Headers $headers
+```
 
+Consulte o estoque:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://localhost:5000/estoque/v1/estoque `
+  -Headers $headers
+```
+
+Crie um pedido:
+
+```powershell
 Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:5000/pedidos/v1/pedidos `
@@ -78,85 +188,198 @@ Invoke-RestMethod `
   -Body '{"sku":"vinho-tinto","quantity":2}'
 ```
 
+Esse pedido faz três coisas: valida o JWT, solicita a reserva ao Estoque por
+REST e publica `pedido.criado` através do RabbitMQ. Se a reserva não puder ser
+feita, a API retorna `409`. Uma chamada protegida sem o header
+`Authorization: Bearer <token>` retorna `401`.
+
 Para cadastrar outro usuário:
 
 ```powershell
-Invoke-RestMethod -Method Post `
+Invoke-RestMethod `
+  -Method Post `
   -Uri http://localhost:5000/auth/v1/auth/register `
   -ContentType 'application/json' `
   -Body '{"username":"aluno","password":"senha123"}'
 ```
 
-Uma chamada protegida sem `Authorization` retorna `401`. Uma quantidade maior
-que o saldo retorna `409`, simulando falha da reserva.
+## 6. Executar testes
 
-Depois de criar um pedido, Pedidos publica o evento `pedido.criado` através do
-serviço de Mensageria no exchange `vinheria.events`. Se o broker estiver
-indisponível, o pedido fica explicitamente como
-`CONFIRMADO_EVENTO_PENDENTE`.
-
-## Isolamento e DNS
-
-Os serviços compartilham a rede `vinheria-network`, mas apenas o Gateway pode
-ser acessado pelo host. O Compose fornece DNS interno para
-`auth-service`, `pedidos-service`, `estoque-service`, `mensageria-service` e
-`rabbitmq`. Isso simula descoberta e registro de serviços sem expor as portas
-internas.
-
-## HTTPS local
-
-Para gerar um certificado de laboratório:
+Os testes ficam em [`tests/ServiceTests`](../tests/ServiceTests). Com o .NET
+SDK instalado:
 
 ```powershell
-.\scripts\generate-cert.ps1
-docker compose -f docker-compose.yml -f docker-compose.secure.yml up --build
+dotnet restore .\VinheriaAgnello.slnx
+dotnet test .\VinheriaAgnello.slnx
 ```
 
-O Gateway HTTPS usa `https://localhost:5440`. Como o certificado é local, o
-navegador ou PowerShell pode pedir uma exceção de confiança. Use as mesmas
-rotas, por exemplo `https://localhost:5440/pedidos/scalar`.
+Para compilar a solução sem executar testes:
 
-Nunca use o certificado, o segredo JWT ou as credenciais do RabbitMQ deste
-protótipo em produção.
+```powershell
+dotnet build .\VinheriaAgnello.slnx
+```
 
-## Jenkins
+O pipeline Jenkins também executa esses testes dentro da imagem
+[`Dockerfile.ci`](../Dockerfile.ci).
 
-O arquivo [`Jenkinsfile`](../Jenkinsfile) executa checkout, validação do
-Compose, build/teste dentro de uma imagem CI e deploy real da stack com
-`docker compose up`. Depois executa smoke tests contra o Gateway. A imagem Jenkins está em
-[`jenkins/Dockerfile`](../jenkins/Dockerfile).
+## 7. HTTPS local (opcional)
+
+O HTTP é suficiente para executar o projeto. Para demonstrar comunicação
+criptografada e comparar HTTP/HTTPS no Wireshark, gere um certificado local:
+
+```powershell
+.\scripts\generate-cert.ps1 -Password "local-only"
+```
+
+Se o PowerShell bloquear a execução do script nesta sessão:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\generate-cert.ps1 -Password "local-only"
+```
+
+Inicie a aplicação com o Compose seguro:
+
+```powershell
+docker compose `
+  -f docker-compose.yml `
+  -f docker-compose.build.yml `
+  -f docker-compose.secure.yml `
+  up --build --remove-orphans
+```
+
+Acesse:
+
+- https://localhost:5440
+
+Como o certificado é de laboratório, o navegador pode mostrar um aviso de
+confiança. O tráfego HTTP permite observar o conteúdo do payload; no HTTPS o
+conteúdo é criptografado, embora metadados como IP, porta e tamanho continuem
+visíveis.
+
+## 8. CI/CD com Jenkins e GHCR
+
+O [`Jenkinsfile`](../Jenkinsfile) implementa o fluxo:
+
+1. checkout do repositório;
+2. criação temporária do `.env`;
+3. validação dos arquivos Compose;
+4. build e testes na imagem CI;
+5. build das cinco imagens;
+6. push para o pacote único no GitHub Container Registry;
+7. pull das imagens publicadas;
+8. deploy com `--no-build`;
+9. smoke test do Gateway.
+
+As imagens usam este formato:
+
+```text
+ghcr.io/mats057/agnello-ms:<número-do-build>-<serviço>
+```
+
+Exemplo: `ghcr.io/mats057/agnello-ms:12-pedidos-service`.
+
+### 8.1 Iniciar o Jenkins
+
+O Compose do Jenkins cria um container Jenkins e um daemon Docker-in-Docker
+isolado. Na raiz do projeto:
 
 ```powershell
 docker compose -f docker-compose.jenkins.yml up --build -d
-docker logs vinheria-jenkins
+docker logs -f vinheria-jenkins
 ```
 
-Abra [http://localhost:8081](http://localhost:8081), informe a senha inicial e
-crie um job Pipeline usando **Pipeline script from SCM**. Depois clique em
-**Build Now** e acompanhe **Console Output**, **Stage View**, **Workspace** e
-**Artifacts**.
+Abra http://localhost:8081. Para obter a senha inicial:
 
-Antes do primeiro build, crie no Jenkins as credenciais secret text:
+```powershell
+docker exec vinheria-jenkins `
+  cat /var/jenkins_home/secrets/initialAdminPassword
+```
 
-- `vinheria-jwt-secret`;
-- `vinheria-rabbitmq-user`;
-- `vinheria-rabbitmq-password`.
+Instale os plugins sugeridos pelo Jenkins, principalmente **Pipeline** e
+**Git**, e crie um job do tipo **Pipeline**.
 
-O pipeline injeta esses valores somente durante o deploy, cria um `.env`
-temporário no workspace e não os grava no Git. O Compose do Jenkins inicia um daemon Docker-in-Docker dedicado, usado pelo
-pipeline para gerar imagens e executar o deploy isolado. Isso evita depender
-de pipes do Docker Desktop do Windows e permite reproduzir o build no agente.
-O deploy desse ambiente fica dentro do daemon CI; para publicar em homologação
-ou produção, substitua esse daemon por um agente Jenkins dedicado ou por um
-registry/servidor de deploy configurado pela equipe.
+Na configuração do job:
 
-## Limitações acadêmicas
+1. selecione **Pipeline script from SCM**;
+2. escolha **Git**;
+3. informe `https://github.com/Mats057/agnello-ms.git`;
+4. use a branch `*/main`;
+5. indique `Jenkinsfile` como script;
+6. salve e clique em **Build Now**.
 
-O JWT usa HMAC-SHA256 e usuários em memória. Em produção, use Keycloak/OIDC,
-chaves assimétricas, armazenamento persistente e rotação de segredos. RabbitMQ
-é usado para demonstrar mensageria; Kafka ou Azure Service Bus seriam
-alternativas para uma implantação real.
+### 8.2 Credenciais do Jenkins
 
-Para a evidência do Wireshark, compare HTTP e HTTPS com dados fictícios: no
-HTTP o payload pode ser lido; no HTTPS apenas metadados como IP, porta e
-tamanho ficam visíveis.
+Crie três credenciais do tipo **Secret text**:
+
+| ID | Valor |
+|---|---|
+| `vinheria-jwt-secret` | uma chave JWT longa e aleatória |
+| `vinheria-rabbitmq-user` | por exemplo, `vinheria` |
+| `vinheria-rabbitmq-password` | uma senha do RabbitMQ |
+
+Para o GHCR, crie também uma credencial **Username with password**:
+
+- **ID**: `github-container-registry`
+- **Username**: seu usuário GitHub, por exemplo `Mats057`
+- **Password**: PAT classic com `write:packages` e `read:packages`
+
+Nunca coloque esse token no código, no `.env` ou no Jenkinsfile. O pacote
+`agnello-ms` precisa existir no GHCR e a conta usada no Jenkins deve ter
+permissão para publicar nele.
+
+### 8.3 Acompanhar e limpar o Jenkins
+
+No job, use **Console Output** para acompanhar cada etapa. O deploy ocorre no
+daemon Docker-in-Docker criado pelo Compose do Jenkins, não diretamente no
+Docker Desktop do host.
+
+Para parar o ambiente:
+
+```powershell
+docker compose -f docker-compose.jenkins.yml down
+```
+
+Para remover também os dados persistidos do Jenkins:
+
+```powershell
+docker compose -f docker-compose.jenkins.yml down --volumes
+```
+
+## 9. Arquivos importantes
+
+- [`docker-compose.yml`](../docker-compose.yml): serviços e deploy.
+- [`docker-compose.build.yml`](../docker-compose.build.yml): instruções de
+  build das imagens.
+- [`docker-compose.secure.yml`](../docker-compose.secure.yml): configuração
+  HTTPS local.
+- [`docker-compose.jenkins.yml`](../docker-compose.jenkins.yml): Jenkins e
+  Docker-in-Docker.
+- [`Jenkinsfile`](../Jenkinsfile): pipeline CI/CD.
+- [`docs/arquitetura.md`](./arquitetura.md): visão resumida da arquitetura.
+- [`docs/demo.http`](./demo.http): exemplos de chamadas HTTP.
+
+## 10. Próximas evoluções e segurança
+
+O projeto já demonstra os principais conceitos de uma solução distribuída:
+Gateway, autenticação JWT, comunicação REST, mensageria, rede interna e
+automação de build e deploy. A partir dessa base, estas são ideias de
+implementação para uma próxima etapa:
+
+- persistir usuários, estoque e pedidos em um banco de dados;
+- substituir as coleções em memória por repositórios e migrations;
+- usar Argon2id ou bcrypt para armazenar senhas;
+- adicionar rotação de segredos e um cofre de credenciais;
+- substituir o emissor local de JWT por Keycloak/OIDC;
+- exigir HTTPS também nas chamadas entre microsserviços;
+- adicionar retries, timeout, circuit breaker e idempotência;
+- incluir logs estruturados, métricas e tracing distribuído;
+- criar consumidores dedicados para os eventos do RabbitMQ;
+- adicionar testes de integração, contratos de API e testes de carga;
+- separar o servidor de deploy do agente Jenkins;
+- evoluir o deploy para Kubernetes ou Azure Container Apps.
+
+Essas evoluções preservam o fluxo acadêmico atual e permitem aproximar o
+protótipo gradualmente de uma arquitetura de produção. As credenciais do
+laboratório, entretanto, devem continuar restritas a ambientes locais e de
+demonstração.

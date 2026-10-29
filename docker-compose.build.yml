@@ -1,0 +1,35 @@
+services:
+  gateway-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/GatewayService/GatewayService.csproj
+        SERVICE_DLL: GatewayService
+
+  auth-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/AuthService/AuthService.csproj
+        SERVICE_DLL: AuthService
+
+  estoque-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/EstoqueService/EstoqueService.csproj
+        SERVICE_DLL: EstoqueService
+
+  pedidos-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/PedidosService/PedidosService.csproj
+        SERVICE_DLL: PedidosService
+
+  mensageria-service:
+    build:
+      context: .
+      args:
+        PROJECT: services/MensageriaService/MensageriaService.csproj
+        SERVICE_DLL: MensageriaService

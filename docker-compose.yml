@@ -1,10 +1,6 @@
 services:
   gateway-service:
-    build:
-      context: .
-      args:
-        PROJECT: services/GatewayService/GatewayService.csproj
-        SERVICE_DLL: GatewayService
+    image: ${IMAGE_PREFIX:-vinheria/agnello-ms}:${IMAGE_TAG:-dev}-gateway-service
     depends_on:
       auth-service:
         condition: service_started
@@ -17,36 +13,24 @@ services:
     networks:
       - vinheria
     ports:
-      - "5000:8080"
+      - "${GATEWAY_PORT:-5000}:8080"
 
   auth-service:
-    build:
-      context: .
-      args:
-        PROJECT: services/AuthService/AuthService.csproj
-        SERVICE_DLL: AuthService
+    image: ${IMAGE_PREFIX:-vinheria/agnello-ms}:${IMAGE_TAG:-dev}-auth-service
     environment:
       JWT_SECRET: ${JWT_SECRET}
     networks:
       - vinheria
 
   estoque-service:
-    build:
-      context: .
-      args:
-        PROJECT: services/EstoqueService/EstoqueService.csproj
-        SERVICE_DLL: EstoqueService
+    image: ${IMAGE_PREFIX:-vinheria/agnello-ms}:${IMAGE_TAG:-dev}-estoque-service
     environment:
       JWT_SECRET: ${JWT_SECRET}
     networks:
       - vinheria
 
   pedidos-service:
-    build:
-      context: .
-      args:
-        PROJECT: services/PedidosService/PedidosService.csproj
-        SERVICE_DLL: PedidosService
+    image: ${IMAGE_PREFIX:-vinheria/agnello-ms}:${IMAGE_TAG:-dev}-pedidos-service
     environment:
       JWT_SECRET: ${JWT_SECRET}
       ESTOQUE_URL: ${ESTOQUE_URL}
@@ -61,11 +45,7 @@ services:
       - vinheria
 
   mensageria-service:
-    build:
-      context: .
-      args:
-        PROJECT: services/MensageriaService/MensageriaService.csproj
-        SERVICE_DLL: MensageriaService
+    image: ${IMAGE_PREFIX:-vinheria/agnello-ms}:${IMAGE_TAG:-dev}-mensageria-service
     environment:
       RABBITMQ_HOST: ${RABBITMQ_HOST}
       RABBITMQ_USER: ${RABBITMQ_USER}
@@ -88,10 +68,7 @@ services:
       retries: 12
     networks:
       - vinheria
-    ports:
-      - "15672:15672"
 
 networks:
   vinheria:
-    name: vinheria-network
     driver: bridge
