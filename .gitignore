@@ -4,3 +4,4 @@ certs/
 publish/
 .env
 *.pdf
+capturas/

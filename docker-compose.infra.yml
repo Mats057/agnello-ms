@@ -1,0 +1,106 @@
+# =====================================================================
+# Fase 7 - Infraestrutura de rede simulada (DHCP + DNS)
+#
+# Uso (junto com os arquivos existentes):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml `
+#                  -f docker-compose.infra.yml up --build
+#
+# Rede 10.20.0.0/24
+#   .1          gateway da rede (bridge do Docker)
+#   .2          servidor DHCP + DNS (dnsmasq)
+#   .10 - .15   servidores com IP fixo (registros A no DNS)
+#   .64 - .127  faixa reservada ao Docker (IPAM)
+#   .150 - .199 escopo DHCP (estações e dispositivos da adega)
+# =====================================================================
+
+services:
+  dns-dhcp:
+    build:
+      context: ./infra/dnsmasq
+    image: vinheria/agnello-infra:dns-dhcp
+    container_name: vinheria-dns-dhcp
+    cap_add:
+      - NET_ADMIN
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.2
+
+  gateway-service:
+    dns: [10.20.0.2]
+    dns_search: [vinheria.local]
+    depends_on:
+      dns-dhcp:
+        condition: service_started
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.10
+
+  auth-service:
+    dns: [10.20.0.2]
+    dns_search: [vinheria.local]
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.11
+
+  estoque-service:
+    dns: [10.20.0.2]
+    dns_search: [vinheria.local]
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.12
+
+  pedidos-service:
+    dns: [10.20.0.2]
+    dns_search: [vinheria.local]
+    environment:
+      # Pedidos encontra Estoque e Mensageria pelo DNS interno da empresa
+      ESTOQUE_URL: http://estoque.vinheria.local:8080
+      MENSAGERIA_URL: http://mensageria.vinheria.local:8080
+    depends_on:
+      dns-dhcp:
+        condition: service_started
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.13
+
+  mensageria-service:
+    dns: [10.20.0.2]
+    dns_search: [vinheria.local]
+    environment:
+      RABBITMQ_HOST: rabbitmq.vinheria.local
+    depends_on:
+      dns-dhcp:
+        condition: service_started
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.14
+
+  rabbitmq:
+    networks:
+      vinheria:
+        ipv4_address: 10.20.0.15
+
+  estacao-adega:
+    build:
+      context: ./infra/estacao-adega
+    image: vinheria/agnello-infra:estacao-adega
+    container_name: vinheria-estacao-adega
+    hostname: estacao-adega
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      dns-dhcp:
+        condition: service_started
+      gateway-service:
+        condition: service_started
+    networks:
+      - vinheria
+
+networks:
+  vinheria:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24
+          ip_range: 10.20.0.64/26
+          gateway: 10.20.0.1
