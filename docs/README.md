@@ -359,6 +359,24 @@ docker compose -f docker-compose.jenkins.yml down --volumes
 - [`docs/arquitetura.md`](./arquitetura.md): visão resumida da arquitetura.
 - [`docs/demo.http`](./demo.http): exemplos de chamadas HTTP.
 
+## 9.1 Fase 7: rede, DHCP/DNS, deploy e segurança
+
+A Fase 7 adiciona ao projeto:
+
+- [`docker-compose.infra.yml`](../docker-compose.infra.yml): rede `10.20.0.0/24`
+  com IPs fixos para os serviços, servidor **DHCP + DNS** (dnsmasq, zona
+  `vinheria.local`) e uma estação cliente que recebe IP por DHCP;
+- [`infra/`](../infra): imagens do servidor DHCP/DNS e da estação da adega;
+- [`Jenkinsfile`](../Jenkinsfile): estágios `Build simples`, `DevSecOps`
+  (Trivy) e `Deploy em pasta de publicacao` (simula IIS); o envio ao GHCR
+  passou a ser opcional pelo parâmetro `PUBLICAR_GHCR`;
+- [`scripts/demo-fluxo.ps1`](../scripts/demo-fluxo.ps1) e
+  [`scripts/capturar-trafego.ps1`](../scripts/capturar-trafego.ps1): fluxo de
+  autenticação e captura de tráfego para o Wireshark.
+
+O passo a passo completo, com a lista de prints da entrega, está em
+[`docs/fase7-roteiro.md`](./fase7-roteiro.md).
+
 ## 10. Próximas evoluções e segurança
 
 O projeto já demonstra os principais conceitos de uma solução distribuída:
