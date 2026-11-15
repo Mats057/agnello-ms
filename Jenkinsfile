@@ -88,8 +88,7 @@ pipeline {
 
         stage('DevSecOps: varredura de seguranca') {
             steps {
-                // Relatório não bloqueante: marca o estágio como UNSTABLE se a
-                // ferramenta falhar, mas não interrompe o deploy do laboratório.
+                // O relatório não bloqueia o deploy da atividade.
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     sh '''
                         set -eu

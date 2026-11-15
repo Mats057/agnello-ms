@@ -1,12 +1,12 @@
 # Vinheria Agnello
 
-Guia de instalação e execução do protótipo de microsserviços da Vinheria
-Agnello. Este documento foi escrito para quem está configurando o projeto pela
-primeira vez, em uma máquina sem o ambiente preparado.
+Guia de instalação e execução do protótipo de microsserviços desenvolvido pela
+equipe da Vinheria Agnello.
 
 ## 1. O que este projeto demonstra
 
-O projeto simula uma arquitetura de microsserviços para uma vinheria:
+Neste projeto, implementamos uma arquitetura de microsserviços para a Vinheria
+Agnello:
 
 - **Gateway**: única porta de entrada para clientes.
 - **AuthService**: cadastro de usuários e emissão de tokens JWT.
@@ -72,10 +72,8 @@ Abra o arquivo para revisar os valores:
 notepad .env
 ```
 
-Para a primeira execução, os valores do modelo já são suficientes. Em um
-ambiente compartilhado, altere pelo menos `JWT_SECRET` e
-`RABBITMQ_PASSWORD`. O arquivo `.env` contém segredos locais e não deve ser
-commitado nem enviado ao GitHub.
+Para executar o projeto, revise `JWT_SECRET` e `RABBITMQ_PASSWORD`. O arquivo
+`.env` contém segredos locais e não deve ser commitado nem enviado ao GitHub.
 
 As variáveis mais importantes são:
 
@@ -155,8 +153,8 @@ clientes HTTP compatíveis com o VS Code.
 
 ### Fluxo de demonstração pelo PowerShell
 
-O usuário `demo` com a senha `vinheria-demo` é criado para o laboratório.
-Primeiro, solicite um token:
+Para executar o fluxo de autenticação, utilizamos o usuário `demo` com a senha
+`vinheria-demo`. Primeiro, solicite um token:
 
 ```powershell
 $tokenResponse = Invoke-RestMethod `
@@ -252,7 +250,7 @@ Acesse:
 
 - https://localhost:5440
 
-Como o certificado é de laboratório, o navegador pode mostrar um aviso de
+Como o certificado é autoassinado, o navegador pode mostrar um aviso de
 confiança. O tráfego HTTP permite observar o conteúdo do payload; no HTTPS o
 conteúdo é criptografado, embora metadados como IP, porta e tamanho continuem
 visíveis.
@@ -359,27 +357,20 @@ docker compose -f docker-compose.jenkins.yml down --volumes
 - [`docs/arquitetura.md`](./arquitetura.md): visão resumida da arquitetura.
 - [`docs/demo.http`](./demo.http): exemplos de chamadas HTTP.
 
-## 10. Próximas evoluções e segurança
+## 9.1. Fase 7: rede, DHCP/DNS, deploy e segurança
 
-O projeto já demonstra os principais conceitos de uma solução distribuída:
-Gateway, autenticação JWT, comunicação REST, mensageria, rede interna e
-automação de build e deploy. A partir dessa base, estas são ideias de
-implementação para uma próxima etapa:
+Na Fase 7, implementamos:
 
-- persistir usuários, estoque e pedidos em um banco de dados;
-- substituir as coleções em memória por repositórios e migrations;
-- usar Argon2id ou bcrypt para armazenar senhas;
-- adicionar rotação de segredos e um cofre de credenciais;
-- substituir o emissor local de JWT por Keycloak/OIDC;
-- exigir HTTPS também nas chamadas entre microsserviços;
-- adicionar retries, timeout, circuit breaker e idempotência;
-- incluir logs estruturados, métricas e tracing distribuído;
-- criar consumidores dedicados para os eventos do RabbitMQ;
-- adicionar testes de integração, contratos de API e testes de carga;
-- separar o servidor de deploy do agente Jenkins;
-- evoluir o deploy para Kubernetes ou Azure Container Apps.
+- [`docker-compose.infra.yml`](../docker-compose.infra.yml): rede `10.20.0.0/24`
+  com IPs fixos para os serviços, servidor **DHCP + DNS** (dnsmasq, zona
+  `vinheria.local`) e uma estação cliente que recebe IP por DHCP;
+- [`infra/`](../infra): imagens do servidor DHCP/DNS e da estação da adega;
+- [`Jenkinsfile`](../Jenkinsfile): estágios `Build simples`, `DevSecOps`
+  (Trivy) e `Deploy em pasta de publicacao` (simula IIS); o envio ao GHCR
+  passou a ser opcional pelo parâmetro `PUBLICAR_GHCR`;
+- [`scripts/demo-fluxo.ps1`](../scripts/demo-fluxo.ps1) e
+  [`scripts/capturar-trafego.ps1`](../scripts/capturar-trafego.ps1): fluxo de
+  autenticação e captura de tráfego para o Wireshark.
 
-Essas evoluções preservam o fluxo acadêmico atual e permitem aproximar o
-protótipo gradualmente de uma arquitetura de produção. As credenciais do
-laboratório, entretanto, devem continuar restritas a ambientes locais e de
-demonstração.
+O passo a passo completo, com a lista de prints da entrega, está em
+[`docs/fase7-roteiro.md`](./fase7-roteiro.md).

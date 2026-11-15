@@ -23,8 +23,8 @@ flowchart LR
     messaging -->|"Publica evento"| broker
 ```
 
-O Gateway é a única aplicação com porta publicada no computador host. Os
-demais serviços são acessados pelo nome do container dentro da rede
+Neste projeto, o Gateway é a única aplicação com porta publicada no computador
+host. Os demais serviços são acessados pelo nome do container dentro da rede
 `vinheria`, que funciona como DNS interno do Compose.
 
 O fluxo de compra é:
@@ -40,20 +40,3 @@ O fluxo HTTP usa OpenAPI/Scalar para documentação e teste manual. A
 autenticação usa JWT assinado pelo AuthService; Pedidos e Estoque validam o
 mesmo token e exigem a role `user`. A comunicação de eventos usa RabbitMQ
 através do Mensageria Service.
-
-## Próximas evoluções
-
-Esta arquitetura pode evoluir gradualmente sem alterar o fluxo demonstrado:
-
-- adicionar um banco persistente para usuários, estoque e pedidos;
-- substituir o armazenamento em memória por repositórios e migrations;
-- usar hash de senha com algoritmo próprio para credenciais, como Argon2id ou
-  bcrypt;
-- trocar o emissor local de JWT por Keycloak ou outro provedor OIDC;
-- habilitar HTTPS entre o Gateway e os serviços, além do HTTPS externo;
-- adicionar retries, timeout, circuit breaker e correlação de requisições;
-- incluir observabilidade com logs estruturados, métricas e tracing;
-- configurar exchanges, filas e consumidores dedicados para eventos;
-- publicar o deploy em um ambiente separado do Jenkins, como um servidor,
-  Kubernetes ou Azure Container Apps;
-- automatizar testes de integração e testes de contrato no pipeline.

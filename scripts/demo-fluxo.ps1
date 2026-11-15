@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Executa o fluxo completo de segurança da Vinheria para demonstração.
+    Executa o fluxo de autenticação e pedido da Vinheria.
 
 .DESCRIPTION
     1. Chamada protegida SEM token          -> espera 401
@@ -22,7 +22,7 @@ param(
 $ErrorActionPreference = "Stop"
 $base = if ($Https) { "https://localhost:5440" } else { "http://localhost:5000" }
 
-# Certificado de laboratório: aceito apenas neste script de demonstração.
+# O certificado local é autoassinado e aceito somente neste fluxo HTTPS.
 $extra = @{}
 if ($Https) {
     if ($PSVersionTable.PSVersion.Major -ge 6) {
